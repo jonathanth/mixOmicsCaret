@@ -1,0 +1,15 @@
+Package: mixOmicsCaret
+Type: Package
+Title: mixOmicsCaret
+Version: 0.1.0
+Author@R: person("Jonathan", "Thorsen", email = "jonathan.thorsen@dbac.dk", role = c("aut", "cre"))
+Description: Implementation and utility functions for using the mixOmics package in the caret framework
+License: GNU GPL 3.0
+Encoding: UTF-8
+LazyData: true
+Imports: mixOmics, 
+    tidyverse, 
+    caret
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

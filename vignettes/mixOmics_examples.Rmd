@@ -1,0 +1,150 @@
+---
+title: "mixOmics with caret examples"
+author: "Jonathan Thorsen"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the mixOmics package (http://mixomics.org/).
+
+First, we load some packages.
+```{r, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(mlbench)
+data(Sonar)
+library(doMC)
+library(caret)
+library(mixOmics)
+library(tidyverse)
+library(pROC)
+library(mixOmicsCaret)  # This package
+```
+
+Then we can register doMC for the built-in multithreading in `caret`. A common option is number of threads minus one. On a quad-core with hyperthreading (Macbook Pro i7), that's 7.
+```{r}
+registerDoMC(cores = 7)
+```
+
+We start by examining the dummy data we'll be using. It's called Sonar and comes from the `mlbench` package.
+```{r}
+head(Sonar)
+Sonar$Class
+dim(Sonar)
+```
+
+Alright, 60 predictors, 208 observations, 2 classes.
+Let's partition the data into a training set and a test set.
+```{r}
+set.seed(123)
+inTraining <- createDataPartition(Sonar$Class, p = .75, list = FALSE)
+training <- Sonar[ inTraining,]
+testing  <- Sonar[-inTraining,]
+```
+
+Now we will setup a cross validation to see how many predictors we should include. First, let's set up the options. It will run 5 repeats of 10-fold CV. We will keep the resamples and the predictions, and allow it to run in parallel. We will turn off verbose-mode for now. 
+We save this as a trainControl object, which is just a set of options for `caret`.
+```{r}
+repCV10 <- trainControl(method = "repeatedcv", 
+                        number = 10, 
+                        repeats = 5, 
+                        returnResamp = "all", 
+                        savePredictions = "all", 
+                        allowParallel = T, 
+                        verboseIter = F)
+```
+
+Now for the CV loop itself. This will take some time. We have asked it to model Class M as a numeric 0/1, which is fine for sPLS but `caret` throws a warning we can safely ignore. We will try 1 to 5 components, with a range of keepX values. This is the soNote the `fixX` argument, which is left empty. 
+```{r}
+set.seed(321)
+SonarPLS <- train(as.numeric(Class == "M") ~ ., data = training,
+                  method = get_mixOmics_sPLS(),
+                  preProc = c("center", "scale"),
+                  tuneGrid = expand.grid(ncomp = 1:5, keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), keepY = 1),
+                  trControl = repCV10,
+                  fixX = c())
+```
+
+Let's plot the results!
+```{r, fig.show='hold'}
+SonarPLS
+ggplot(SonarPLS, metric = "RMSE")
+ggplot(SonarPLS, metric = "Rsquared")
+```
+
+We can also inspect the various folds for 
+SonarPLS %>% getBestPredictions %>% group_by(Rep) %>% summarize(auc = pROC::auc(obs, pred))%>% arrange(auc)
+
+SonarPLS$pred %>%
+  separate(Resample, c("Fold", "Rep")) %>%
+  group_by(ncomp, keepX, Rep) %>%
+  summarize(auc = pROC::auc(predictor = pred, obs)) %>%
+  ggplot(aes(x = factor(keepX), y = auc)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(color = factor(ncomp)), alpha = 0.2, show.legend = FALSE) +
+  geom_hline(yintercept = 0.5) +
+  facet_grid(. ~ ncomp) +
+  scale_color_brewer(palette = "Set1", name = NULL) +
+  theme_bw() + theme(strip.background = element_blank()) +
+  xlab("Number of variables")
+
+auc(predictor = predict(SonarPLS, testing), testing$Class)
+
+
+
+
+
+
+
+
+## Example stuff
+
+Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+
+- Never uses retina figures
+- Has a smaller default figure size
+- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+
+## Vignette Info
+
+Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+
+## Styles
+
+The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+
+    output: 
+      rmarkdown::html_vignette:
+        css: mystyles.css
+
+## Figures
+
+The figure sizes have been customised so that you can easily put two images side-by-side. 
+
+```{r, fig.show='hold'}
+plot(1:10)
+plot(10:1)
+```
+
+You can enable figure captions by `fig_caption: yes` in YAML:
+
+    output:
+      rmarkdown::html_vignette:
+        fig_caption: yes
+
+Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+
+## More Examples
+
+You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(head(mtcars, 10))
+```
+
+Also a quote using `>`:
+
+> "He who gives up [code] safety for [code] speed deserves neither."
+([via](https://twitter.com/hadleywickham/status/504368538874703872))
