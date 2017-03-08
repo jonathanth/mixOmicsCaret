@@ -6,6 +6,7 @@
 #' @examples
 #' get_mixOmics_sPLS()
 #' @export
+#'
 get_mixOmics_sPLS <- function(...) { list(
   library = c("mixOmics", "tidyverse"),
   type = c("Regression"),

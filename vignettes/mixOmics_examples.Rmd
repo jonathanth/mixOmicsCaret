@@ -9,9 +9,15 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the mixOmics package (http://mixomics.org/).
+This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the `mixOmics` package (http://mixomics.org/). The package has some cross-validation functionality but this is not nearly as rich as what the `caret` package offers. But luckily, it can be added to the `caret` ecosystem to take advantage of all these nice features.
 
-First, we load some packages.
+This small utility package does just that and can be installed from github using `devtools::install_github("jonathanth/mixOmicsCaret")`
+
+Let's look at how to use it.
+
+## Setup
+
+First, we load some required packages.
 ```{r, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 library(mlbench)
 data(Sonar)
@@ -27,6 +33,8 @@ Then we can register doMC for the built-in multithreading in `caret`. A common o
 ```{r}
 registerDoMC(cores = 7)
 ```
+
+## Data
 
 We start by examining the dummy data we'll be using. It's called Sonar and comes from the `mlbench` package.
 ```{r}
@@ -44,6 +52,8 @@ training <- Sonar[ inTraining,]
 testing  <- Sonar[-inTraining,]
 ```
 
+## Model and cross-validation
+
 Now we will setup a cross validation to see how many predictors we should include. First, let's set up the options. It will run 5 repeats of 10-fold CV. We will keep the resamples and the predictions, and allow it to run in parallel. We will turn off verbose-mode for now. 
 We save this as a trainControl object, which is just a set of options for `caret`.
 ```{r}
@@ -56,95 +66,91 @@ repCV10 <- trainControl(method = "repeatedcv",
                         verboseIter = F)
 ```
 
-Now for the CV loop itself. This will take some time. We have asked it to model Class M as a numeric 0/1, which is fine for sPLS but `caret` throws a warning we can safely ignore. We will try 1 to 5 components, with a range of keepX values. This is the soNote the `fixX` argument, which is left empty. 
-```{r}
-set.seed(321)
+Now for the CV loop itself. This will take some time. We have asked it to model Class M as a numeric 0/1, which is fine for sPLS but `caret` throws a warning we can safely ignore. We will try 1 to 5 components, with a range of keepX values. This is the number of predictors allowed per component. Note the `fixX` argument, which is left empty for now. This allows us to manually specify number of predictors per component. 
+```{r Run CV}
+set.seed(123)
 SonarPLS <- train(as.numeric(Class == "M") ~ ., data = training,
                   method = get_mixOmics_sPLS(),
                   preProc = c("center", "scale"),
-                  tuneGrid = expand.grid(ncomp = 1:5, keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), keepY = 1),
+                  tuneGrid = expand.grid(ncomp = 1:5, 
+                                         keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), 
+                                         keepY = 1),
                   trControl = repCV10,
                   fixX = c())
 ```
 
-Let's plot the results!
-```{r, fig.show='hold'}
+Let's inspect the results!
+```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
 SonarPLS
 ggplot(SonarPLS, metric = "RMSE")
 ggplot(SonarPLS, metric = "Rsquared")
 ```
-
-We can also inspect the various folds for 
-SonarPLS %>% getBestPredictions %>% group_by(Rep) %>% summarize(auc = pROC::auc(obs, pred))%>% arrange(auc)
-
+We can also manually extract the predictions, calculate AUC, and plot it:
+```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
 SonarPLS$pred %>%
   separate(Resample, c("Fold", "Rep")) %>%
   group_by(ncomp, keepX, Rep) %>%
   summarize(auc = pROC::auc(predictor = pred, obs)) %>%
   ggplot(aes(x = factor(keepX), y = auc)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(aes(color = factor(ncomp)), alpha = 0.2, show.legend = FALSE) +
-  geom_hline(yintercept = 0.5) +
-  facet_grid(. ~ ncomp) +
-  scale_color_brewer(palette = "Set1", name = NULL) +
-  theme_bw() + theme(strip.background = element_blank()) +
-  xlab("Number of variables")
-
-auc(predictor = predict(SonarPLS, testing), testing$Class)
-
-
-
-
-
-
-
-
-## Example stuff
-
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
-
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
-
-## Vignette Info
-
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
-
-## Styles
-
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
-
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
-
-## Figures
-
-The figure sizes have been customised so that you can easily put two images side-by-side. 
-
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(aes(color = factor(ncomp)), alpha = 0.2, show.legend = FALSE) +
+    geom_hline(yintercept = 0.5) +
+    facet_grid(. ~ ncomp) +
+    scale_color_brewer(palette = "Set1", name = NULL) +
+    theme_bw() + theme(strip.background = element_blank()) +
+    xlab("Number of variables")
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
+Looks like the first component saturates at 25 predictors. Let's use the `fixX` parameter to force comp 1 to have 25 predictors and let the following components try out all combinations. This allows us to flexibly set individual parameter numbers for each component. Lets re-run the cross-validation with this option.
+```{r Run CV 2, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
+set.seed(123)
+SonarPLS <- train(as.numeric(Class == "M") ~ ., data = training,
+                  method = get_mixOmics_sPLS(),
+                  preProc = c("center", "scale"),
+                  tuneGrid = expand.grid(ncomp = 1:5, 
+                                         keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), 
+                                         keepY = 1),
+                  trControl = repCV10,
+                  fixX = c(25))
+ggplot(SonarPLS, metric = "Rsquared")
+```
+Alright, we can do a little bit better if we add another component with 60 variables. But after that, the model starts overfitting and the CV-error increases / Rsquared decreases.
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+## Evaluate the final model
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+Looks like we have found our final model! Lets retrieve the predicted values, that we can use for unbiased downstream analyses. We want an average across the repeats to ensure we didn't just get lucky with the fold divisions. Since we have a test set, we can also look at the test set performance of the final model, using the `predict` function on the `SonarPLS` object with the `testing` dataframe as new data.
+```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
+# Retrieve the predictions with the best 
+bestSet <- SonarPLS %>% getBestPredictions %>% group_by(Rep) 
+head(bestSet)
+bestSet %>% summarize(auc = pROC::auc(obs, pred) )%>% arrange(auc)
+savedPreds <- SonarPLS %>% getBestPredictions %>% filter(Rep == "Rep3")
+head(savedPreds)
 
-## More Examples
+# Best CV predictions
+cvauc <- auc(obs ~ pred, data = savedPreds)
+qplot(ifelse(obs == 1, "M", "R"), pred, data = savedPreds, geom = c("boxplot", "jitter")) + 
+  xlab("Training class") +
+  ylab("Training predictions") +
+  ggtitle(paste0("CV AUC = ", round(cvauc, 3)))
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
+# Test set predictions
+testPreds <- predict(SonarPLS, testing)
+cvauc <- auc(predictor = testPreds, testing$Class)
+qplot(testing$Class, testPreds, geom = c("boxplot", "jitter")) + 
+  xlab("Testing class") +
+  ylab("Testing predictions") +
+  ggtitle(paste0("Test AUC = ", round(cvauc, 3)))
 ```
 
-Also a quote using `>`:
+We can also run e.g. a logistic regression with these predictions, or use them for other downstream stuff.
+```{r}
+# Training (CV)
+glm(obs ~ pred, data = savedPreds, family = binomial) %>% summary
 
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+# Test
+glm(testing$Class == "M" ~ testPreds, family = binomial) %>% summary
+```
+
+As you can see, the CV performance tends to be quite close to the test set performance in this setup.
+Hope this proves useful for you!
