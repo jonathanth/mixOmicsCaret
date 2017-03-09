@@ -1,12 +1,13 @@
 #' Returns a list object which caret uses to interface with mixOmics.
 #'
 #' @param ... Ignored.
-#'
 #' @return A \code{list} object that can be used with \code{caret::train()}.
 #' @examples
-#' get_mixOmics_sPLS()
+#' library(caret)
+#' x <- data.frame(matrix(rnorm(1000),nrow = 100))
+#' y <- rnorm(100)
+#' train(x = x, y = y, method = get_mixOmics_sPLS())
 #' @export
-#'
 get_mixOmics_sPLS <- function(...) { list(
 	library = c("mixOmics", "tidyverse"),
 	type = c("Regression"),
@@ -26,9 +27,9 @@ get_mixOmics_sPLS <- function(...) { list(
 				keepY <- 1
 				if(!is.null(ncol(y)))
 					keepY <- unique(round(exp(seq(log(1),log(ncol(y)), length.out = len))))
-
 			}
 			out <- setNames(expand.grid(ncomp, keepX, keepY), c("ncomp", "keepX", "keepY"))
+			message(str(out))
 			out
 		},
 	fit = function(x, y, wts, param, lev, last, weights, classProbs, ...) {
@@ -141,6 +142,5 @@ get_mixOmics_sPLS <- function(...) { list(
 	# oob,
 	# notes,
 	# check,
-
 )
-  }
+}
