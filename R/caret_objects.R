@@ -1,3 +1,5 @@
+#' mixOmics sparse Partial Least Squares
+#'
 #' Returns a list object which caret uses to interface with mixOmics.
 #'
 #' @param ... Ignored.
@@ -6,9 +8,9 @@
 #' library(caret)
 #' x <- data.frame(matrix(rnorm(1000),nrow = 100))
 #' y <- rnorm(100)
-#' train(x = x, y = y, method = get_mixOmics_sPLS())
+#' train(x = x, y = y, method = get_mixOmics_spls())
 #' @export
-get_mixOmics_sPLS <- function(...) { list(
+get_mixOmics_spls <- function(...) { list(
 	library = c("mixOmics", "tidyverse"),
 	type = c("Regression"),
 	parameters = data.frame(parameter = c("ncomp", "keepX", "keepY"),
@@ -94,50 +96,8 @@ get_mixOmics_sPLS <- function(...) { list(
 			filter(value != 0) %>%
 			.$var %>%
 			unique
-		},
-	VarImp = function(model, estimate = NULL, ...) {
-		loadingsX <- model$loadings$X %>% data.frame %>%
-			mutate(var = rownames(.)) %>%
-			gather(comp, loading, -var)
-		loadingsY <- model$loadings$Y %>% data.frame %>%
-			mutate(var = rownames(.)) %>%
-			gather(comp, loading, -var)
-		loadings <- bind_rows(X = loadingsX, Y = loadingsY, .id = "XY")
-
-		model$loadings$X %>% abs %>%
-			rowSums %>%
-			data.frame(Overall = .)
-		# modelCoef <- coef(model, intercept = FALSE, comps = 1:model$ncomp)
-		# perf <- MSEP(model)$val
-
-		# nms <- dimnames(perf)
-		# if(length(nms$estimate) > 1) {
-		#   pIndex <- if(is.null(estimate)) 1 else which(nms$estimate == estimate)
-		#   perf <- perf[pIndex,,,drop = FALSE]
-		# }
-		# numResp <- dim(modelCoef)[2]
-
-		# if(numResp <= 2) {
-		#   modelCoef <- modelCoef[,1,,drop = FALSE]
-		#   perf <- perf[,1,]
-		#   delta <- -diff(perf)
-		#   delta <- delta/sum(delta)
-		#   out <- data.frame(Overall = apply(abs(modelCoef), 1,
-		#                                     weighted.mean, w = delta))
-		# } else {
-		#   perf <- -t(apply(perf[1,,], 1, diff))
-		#   perf <- t(apply(perf, 1, function(u) u/sum(u)))
-		#   out <- matrix(NA, ncol = numResp, nrow = dim(modelCoef)[1])
-
-		#   for(i in 1:numResp) {
-		#     tmp <- abs(modelCoef[,i,, drop = FALSE])
-		#     out[,i] <- apply(tmp, 1,  weighted.mean, w = perf[i,])
-		#   }
-		#   colnames(out) <- dimnames(modelCoef)[[2]]
-		#   rownames(out) <- dimnames(modelCoef)[[1]]
-		# }
-		# as.data.frame(out)
-	}
+		}
+	# VarImp
 	# tags,
 	# oob,
 	# notes,

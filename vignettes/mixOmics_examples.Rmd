@@ -7,6 +7,7 @@ vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+# knitr::knit("vignettes/mixOmics_examples.Rmd", "vignettes/mixOmics_examples.html")
 ---
 
 This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the `mixOmics` package (http://mixomics.org/). The package has some cross-validation functionality but this is not nearly as rich as what the `caret` package offers. But luckily, it can be added to the `caret` ecosystem to take advantage of all these nice features.
@@ -23,9 +24,9 @@ library(mlbench)
 data(Sonar)
 library(doMC)
 library(caret)
+library(pROC)
 library(mixOmics)
 library(tidyverse)
-library(pROC)
 library(mixOmicsCaret)  # This package
 ```
 
@@ -66,11 +67,11 @@ repCV10 <- trainControl(method = "repeatedcv",
                         verboseIter = F)
 ```
 
-Now for the CV loop itself. This will take some time. We have asked it to model Class M as a numeric 0/1, which is fine for sPLS but `caret` throws a warning we can safely ignore. We will try 1 to 5 components, with a range of keepX values. This is the number of predictors allowed per component. Note the `fixX` argument, which is left empty for now. This allows us to manually specify number of predictors per component. 
+Now for the CV loop itself. This will take some time. We have asked it to model Class M as a numeric 0/1, which is fine for spls but `caret` throws a warning we can safely ignore. We will try 1 to 5 components, with a range of keepX values. This is the number of predictors allowed per component. Note the `fixX` argument, which is left empty for now. This allows us to manually specify number of predictors per component. 
 ```{r Run CV}
 set.seed(123)
 SonarPLS <- train(as.numeric(Class == "M") ~ ., data = training,
-                  method = get_mixOmics_sPLS(),
+                  method = get_mixOmics_spls(),
                   preProc = c("center", "scale"),
                   tuneGrid = expand.grid(ncomp = 1:5, 
                                          keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), 
@@ -105,7 +106,7 @@ Looks like the first component saturates at 25 predictors. Let's use the `fixX` 
 ```{r Run CV 2, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
 set.seed(123)
 SonarPLS <- train(as.numeric(Class == "M") ~ ., data = training,
-                  method = get_mixOmics_sPLS(),
+                  method = get_mixOmics_spls(),
                   preProc = c("center", "scale"),
                   tuneGrid = expand.grid(ncomp = 1:5, 
                                          keepX = c(1, 2, 4, 8, 16, 25, 40, 50, 60), 
@@ -120,11 +121,11 @@ Alright, we can do a little bit better if we add another component with 60 varia
 
 Looks like we have found our final model! Lets retrieve the predicted values, that we can use for unbiased downstream analyses. We want an average across the repeats to ensure we didn't just get lucky with the fold divisions. Since we have a test set, we can also look at the test set performance of the final model, using the `predict` function on the `SonarPLS` object with the `testing` dataframe as new data.
 ```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
-# Retrieve the predictions with the best 
-bestSet <- SonarPLS %>% getBestPredictions %>% group_by(Rep) 
+# Retrieve the predictions from the optimal model
+bestSet <- SonarPLS %>% get_best_predictions %>% group_by(Rep) 
 head(bestSet)
 bestSet %>% summarize(auc = pROC::auc(obs, pred) )%>% arrange(auc)
-savedPreds <- SonarPLS %>% getBestPredictions %>% filter(Rep == "Rep3")
+savedPreds <- SonarPLS %>% get_best_predictions %>% filter(Rep == "Rep3")
 head(savedPreds)
 
 # Best CV predictions
@@ -153,4 +154,27 @@ glm(testing$Class == "M" ~ testPreds, family = binomial) %>% summary
 ```
 
 As you can see, the CV performance tends to be quite close to the test set performance in this setup.
-Hope this proves useful for you!
+
+## Interpretation (Loadings)
+
+Now we would like to get some information on the variables included in the model. Luckily we can easily extract the loadings from the model, either from the full training model or from our favourite CV run.
+```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
+# Retrieve the predictions with the best 
+SonarPLS %>% get_loadings %>% head # Returns a data.frame for easy plotting
+
+SonarPLS %>% get_loadings("CV", rep = "Rep3") %>% 
+  ggplot(aes(var, loading, ymin = loading - sd, ymax = loading + sd)) + 
+  facet_wrap(~ comp, scales = "free_x") + 
+  geom_errorbar() + 
+  geom_bar(stat = "identity") + 
+  ggtitle("CV, median rep (Rep3)")
+
+SonarPLS %>% get_loadings("finalModel") %>% 
+  ggplot(aes(var, loading, ymin = loading - sd, ymax = loading + sd)) + 
+  facet_wrap(~ comp, scales = "free_x") + 
+  geom_errorbar() + 
+  geom_bar(stat = "identity") + 
+  ggtitle("Full model")
+```
+
+Hope this proves useful for you! Read documentation on the methods with `?get_mixOmics_spls`, `?get_loadings` and `?get_best_predictions`.
