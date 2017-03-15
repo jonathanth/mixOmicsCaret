@@ -3,10 +3,10 @@
 #' Returns the CV predictions associated with the best performing tuning parameters. If there are multiple CV repeats, these are separated.
 #'
 #' @param trainobj The \code{train} object from \code{caret}, fit using mixOmics spls.
-#' @param rep If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).
-#' @param ncomp Manually select CV predictions with this parameter.
-#' @param keepX Manually select CV predictions with this parameter.
-#' @param keepY Manually select CV predictions with this parameter.
+#' @param rep If trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).
+#' @param ncomp Manually select CV predictions with this parameter, instead of the best one from \code{train}.
+#' @param keepX Manually select CV predictions with this parameter, instead of the best one from \code{train}.
+#' @param keepY Manually select CV predictions with this parameter, instead of the best one from \code{train}.
 #' @return A \code{data.frame} with the variables
 #' \itemize{
 #'   \item \code{pred} - the predicted values

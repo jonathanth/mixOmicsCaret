@@ -10,13 +10,13 @@ get_best_predictions(trainobj, rep = NA, ncomp = NA, keepX = NA,
 \arguments{
 \item{trainobj}{The \code{train} object from \code{caret}, fit using mixOmics spls.}
 
-\item{rep}{If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).}
+\item{rep}{If trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).}
 
-\item{ncomp}{Manually select CV predictions with this parameter.}
+\item{ncomp}{Manually select CV predictions with this parameter, instead of the best one from \code{train}.}
 
-\item{keepX}{Manually select CV predictions with this parameter.}
+\item{keepX}{Manually select CV predictions with this parameter, instead of the best one from \code{train}.}
 
-\item{keepY}{Manually select CV predictions with this parameter.}
+\item{keepY}{Manually select CV predictions with this parameter, instead of the best one from \code{train}.}
 }
 \value{
 A \code{data.frame} with the variables
