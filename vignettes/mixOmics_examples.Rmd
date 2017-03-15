@@ -7,9 +7,8 @@ vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-# knitr::knit("vignettes/mixOmics_examples.Rmd", "vignettes/mixOmics_examples.html")
+# rmarkdown::render("vignettes/mixOmics_examples.Rmd", output_file="mixOmics_examples.html")
 ---
-
 This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the `mixOmics` package (http://mixomics.org/). The package has some cross-validation functionality but this is not nearly as rich as what the `caret` package offers. But luckily, it can be added to the `caret` ecosystem to take advantage of all these nice features.
 
 This small utility package does just that and can be installed from github using `devtools::install_github("jonathanth/mixOmicsCaret")`
@@ -178,3 +177,4 @@ SonarPLS %>% get_loadings("finalModel") %>%
 ```
 
 Hope this proves useful for you! Read documentation on the methods with `?get_mixOmics_spls`, `?get_loadings` and `?get_best_predictions`.
+

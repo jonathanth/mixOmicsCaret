@@ -82,9 +82,11 @@ get_mixOmics_spls <- function(...) { list(
 	levels = function(x) levels(x$Y),
 	loop = function(grid) {
 		loop <- grid %>% filter(ncomp == max(ncomp))
-        submodels <- list()
-        for(i in 1:nrow(loop))
-        	submodels[[i]] <- data.frame(ncomp = 1:(max(grid$ncomp)-1))
+    submodels <- list()
+    for(i in 1:nrow(loop))
+      submodels[[i]] <- data.frame(ncomp = 1:(max(grid$ncomp)-1))
+    if(max(grid$ncomp) == 1)
+      return(list(loop = loop, submodels = NULL))
 		list(loop = loop, submodels = submodels)
 		}, # Can be used to get predictions for successive ncomp values with no refitting
 	label = "sparse PLS (mixOmics)",

@@ -3,6 +3,10 @@
 #' Returns the CV predictions associated with the best performing tuning parameters. If there are multiple CV repeats, these are separated.
 #'
 #' @param trainobj The \code{train} object from \code{caret}, fit using mixOmics spls.
+#' @param rep If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).
+#' @param ncomp Manually select CV predictions with this parameter.
+#' @param keepX Manually select CV predictions with this parameter.
+#' @param keepY Manually select CV predictions with this parameter.
 #' @return A \code{data.frame} with the variables
 #' \itemize{
 #'   \item \code{pred} - the predicted values
@@ -20,13 +24,31 @@
 #' PLS <- train(x = x, y = y, method = get_mixOmics_spls())
 #' getBestPredictions(PLS)
 #' @export
-get_best_predictions <- function(trainobj){
+get_best_predictions <- function(trainobj,
+                                 rep = NA,
+                                 ncomp = NA,
+                                 keepX = NA,
+                                 keepY = NA){
   if(trainobj$modelInfo$label != "sparse PLS (mixOmics)")
-    simpleError("Please supple train object that uses mixOmics spls,.")
+    warning("Please supply train object that uses mixOmics spls. Output may be unreliable.")
   bt <- trainobj$bestTune
-  trainobj$pred %>%
-    filter(ncomp == bt$ncomp, keepX == bt$keepX, keepY == bt$keepY) %>%
-    separate(Resample, c("Fold", "Rep"))
+  if(!is.na(ncomp))
+    bt$ncomp <- ncomp
+  if(!is.na(keepX))
+    bt$keepX <- keepX
+  if(!is.na(keepY))
+    bt$keepY <- keepY
+  filter_terms <- paste0(names(bt), " == ", bt, collapse = " & ")
+
+  out <- trainobj$pred %>%
+    filter_(filter_terms) %>%
+    separate(Resample, c("Fold", "Rep")) %>%
+    arrange(Rep, rowIndex)
+  if(!is.na(rep))
+    out <- out %>% filter(Rep == rep)
+  if(nrow(out) == 0)
+    stop("Invalid parameter specification. Please check and try again, or refit train object with these parameters.")
+  out
 }
 
 #' Get loadings
@@ -39,6 +61,9 @@ get_best_predictions <- function(trainobj){
 #' @param xykeep Return loadings from x or y? Either \code{"x"}, \code{"y"}, or \code{"both"}.
 #' @param rep If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).
 #' @param remove_empty Remove loadings with a value of zero from output.
+#' @param ncomp Manually select CV predictions with this parameter.
+#' @param keepX Manually select CV predictions with this parameter.
+#' @param keepY Manually select CV predictions with this parameter.
 #' @return A \code{data.frame} with the variables
 #' \itemize{
 #'   \item \code{var} - the variable
@@ -64,7 +89,10 @@ get_loadings <- function(trainobj,
                         what = c("finalModel", "CV"),
                         xykeep = c("x", "y", "both"),
                         rep = NA,
-                        remove_empty = TRUE) {
+                        remove_empty = TRUE,
+                        ncomp = NA,
+                        keepX = NA,
+                        keepY = NA) {
   if(what[1] == "finalModel"){
     loadingsx <- trainobj$finalModel$loadings$X %>%
       data.frame %>%
@@ -77,6 +105,13 @@ get_loadings <- function(trainobj,
   }
 
   if(what[1] == "CV"){
+    bt <- trainobj$bestTune
+    if(!is.na(ncomp))
+      bt$ncomp <- ncomp
+    if(!is.na(keepX))
+      bt$keepX <- keepX
+    if(!is.na(keepY))
+      bt$keepY <- keepY
     control <- trainobj$control
     keep <- rep(TRUE, length(control$index))
     if(!is.na(rep))  # Select one rep.
@@ -87,7 +122,7 @@ get_loadings <- function(trainobj,
     refits <- lapply(seq(along = index), function(i){
       trainobj$modelInfo$fit(trainobj$finalModel$X[index[[i]],],
                              trainobj$finalModel$Y[index[[i]],],
-                             param = trainobj$bestTune,
+                             param = bt,
                              trainobj$dots)
     })
     loadingsx <- lapply(seq_along(refits), function(i){

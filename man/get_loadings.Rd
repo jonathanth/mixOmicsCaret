@@ -5,7 +5,8 @@
 \title{Get loadings}
 \usage{
 get_loadings(trainobj, what = c("finalModel", "CV"), xykeep = c("x", "y",
-  "both"), rep = NA, remove_empty = TRUE)
+  "both"), rep = NA, remove_empty = TRUE, ncomp = NA, keepX = NA,
+  keepY = NA)
 }
 \arguments{
 \item{trainobj}{The \code{train} object from \code{caret}, fit using mixOmics spls.}
@@ -17,6 +18,12 @@ get_loadings(trainobj, what = c("finalModel", "CV"), xykeep = c("x", "y",
 \item{rep}{If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).}
 
 \item{remove_empty}{Remove loadings with a value of zero from output.}
+
+\item{ncomp}{Manually select CV predictions with this parameter.}
+
+\item{keepX}{Manually select CV predictions with this parameter.}
+
+\item{keepY}{Manually select CV predictions with this parameter.}
 }
 \value{
 A \code{data.frame} with the variables
