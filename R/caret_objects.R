@@ -31,7 +31,6 @@ get_mixOmics_spls <- function(...) { list(
 					keepY <- unique(round(exp(seq(log(1),log(ncol(y)), length.out = len))))
 			}
 			out <- setNames(expand.grid(ncomp, keepX, keepY), c("ncomp", "keepX", "keepY"))
-			message(str(out))
 			out
 		},
 	fit = function(x, y, wts, param, lev, last, weights, classProbs, ...) {
