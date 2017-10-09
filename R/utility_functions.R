@@ -61,6 +61,7 @@ get_best_predictions <- function(trainobj,
 #' @param xykeep Return loadings from x or y? Either \code{"x"}, \code{"y"}, or \code{"both"}.
 #' @param rep If \code{what = "CV"}, and trainobj was fit using repeated cross-validation, choose a repeat (e.g. "Rep1") or leave as NA for all repeats (default).
 #' @param remove_empty Remove loadings with a value of zero from output.
+#' @param summarize Return median/sd of loadings across CV folds/reps instead of all the individual loadings from each fold/rep.
 #' @param ncomp Manually select CV predictions with this parameter.
 #' @param keepX Manually select CV predictions with this parameter.
 #' @param keepY Manually select CV predictions with this parameter.
@@ -70,8 +71,10 @@ get_best_predictions <- function(trainobj,
 #'   \item \code{comp} - the component
 #'   \item \code{loading} - the loading value (median if across CV folds / reps)
 #'   \item \code{sd} - the standard deviation of the loading (if across CV folds / reps, NA otherwise)
+#'   \item \code{chosen} - the fraction of folds/reps where this loading was selected (if across CV folds / reps, NA otherwise)
 #'   \item \code{xy} - is it a loading on x or y?
 #' }
+#' @return If \code{summarize = FALSE}, \code{sd} and \code{chosen} are omitted, instead returning individual loadings across all folds/reps.
 #' @examples
 #' library(caret)
 #' x <- data.frame(matrix(rnorm(1000),nrow = 100))
@@ -90,17 +93,18 @@ get_loadings <- function(trainobj,
                         xykeep = c("x", "y", "both"),
                         rep = NA,
                         remove_empty = TRUE,
+                        summarize = TRUE,
                         ncomp = NA,
                         keepX = NA,
                         keepY = NA) {
   if(what[1] == "finalModel"){
     loadingsx <- trainobj$finalModel$loadings$X %>%
       data.frame %>%
-      mutate(var = rownames(.), sd = NA) %>%
+      mutate(var = rownames(.), sd = NA, chosen = NA) %>%
       gather(comp, loading, -var, -sd)
     loadingsy <- trainobj$finalModel$loadings$Y %>%
       data.frame %>%
-      mutate(var = rownames(.), sd = NA) %>%
+      mutate(var = rownames(.), sd = NA, chosen = NA) %>%
       gather(comp, loading, -var, -sd)
   }
 
@@ -130,19 +134,24 @@ get_loadings <- function(trainobj,
         data.frame %>%
         mutate(var = rownames(.)) %>%
         gather(comp, loading, -var)
-    }) %>% bind_rows %>%
-      group_by(comp, var) %>%
-      summarize(sd = sd(loading), loading = median(loading)) %>%
-      ungroup
+    }) %>% bind_rows
     loadingsy <- lapply(seq_along(refits), function(i){
     refits[[i]]$loadings$Y %>%
         data.frame %>%
         mutate(var = rownames(.)) %>%
         gather(comp, loading, -var)
-    }) %>% bind_rows %>%
-      group_by(comp, var) %>%
-      summarize(sd = sd(loading), loading = median(loading)) %>%
-      ungroup
+    }) %>% bind_rows
+
+    if(summarize){
+      loadingsx <- loadingsx %>%
+        group_by(comp, var) %>%
+        summarize(sd = sd(loading), loading = median(loading), chosen = mean(loading != 0)) %>%
+        ungroup
+      loadingsy <- loadingsy %>%
+        group_by(comp, var) %>%
+        summarize(sd = sd(loading), loading = median(loading), chosen = mean(loading != 0)) %>%
+        ungroup
+    }
   }
 
   if(!what[1] %in% c("finalModel", "CV")){
