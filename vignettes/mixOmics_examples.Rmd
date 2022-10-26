@@ -4,11 +4,13 @@ author: "Jonathan Thorsen"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{mixOmics with caret examples}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
-# rmarkdown::render("vignettes/mixOmics_examples.Rmd", output_file="mixOmics_examples.html")
+# rmarkdown::render("vignettes/mixOmics_examples.Rmd", output_file="mixOmics_examples.html", params = list(width = 90))
 ---
+Vignette written in 2017, small update in 2022.
+
 This is an example of how we can use sparse Partial Least Squares for modelling. The model is implemented in the `mixOmics` package (http://mixomics.org/). The package has some cross-validation functionality but this is not nearly as rich as what the `caret` package offers. But luckily, it can be added to the `caret` ecosystem to take advantage of all these nice features.
 
 This small utility package does just that and can be installed from github using `devtools::install_github("jonathanth/mixOmicsCaret")`
@@ -27,6 +29,7 @@ library(pROC)
 library(mixOmics)
 library(tidyverse)
 library(mixOmicsCaret)  # This package
+options(width = 90)
 ```
 
 Then we can register doMC for the built-in multithreading in `caret`. A common option is number of threads minus one. On a quad-core with hyperthreading (Macbook Pro i7), that's 7.
@@ -37,7 +40,7 @@ registerDoMC(cores = 7)
 ## Data
 
 We start by examining the dummy data we'll be using. It's called Sonar and comes from the `mlbench` package.
-```{r}
+```{r, out.width=7}
 head(Sonar)
 Sonar$Class
 dim(Sonar)
@@ -86,11 +89,11 @@ ggplot(SonarPLS, metric = "RMSE")
 ggplot(SonarPLS, metric = "Rsquared")
 ```
 We can also manually extract the predictions, calculate AUC, and plot it:
-```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE}
+```{r, fig.align='center', fig.height=5, fig.show='hold', fig.width=7, warning=FALSE, message=FALSE}
 SonarPLS$pred %>%
   separate(Resample, c("Fold", "Rep")) %>%
   group_by(ncomp, keepX, Rep) %>%
-  summarize(auc = pROC::auc(predictor = pred, obs)) %>%
+  summarize(auc = pROC::auc(predictor = pred, obs, direction = "<") %>% as.numeric) %>%
   ggplot(aes(x = factor(keepX), y = auc)) +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(aes(color = factor(ncomp)), alpha = 0.2, show.legend = FALSE) +
@@ -123,12 +126,14 @@ Looks like we have found our final model! Lets retrieve the predicted values, th
 # Retrieve the predictions from the optimal model
 bestSet <- SonarPLS %>% get_best_predictions %>% group_by(Rep) 
 head(bestSet)
-bestSet %>% summarize(auc = pROC::auc(obs, pred) )%>% arrange(auc)
+bestSet %>% 
+  summarize(auc = pROC::auc(obs, pred, direction = "<") %>% as.numeric) %>% 
+  arrange(auc)
 savedPreds <- SonarPLS %>% get_best_predictions %>% filter(Rep == "Rep3")
 head(savedPreds)
 
 # Best CV predictions
-cvauc <- auc(obs ~ pred, data = savedPreds)
+cvauc <- auc(obs ~ pred, data = savedPreds, direction = "<")
 qplot(ifelse(obs == 1, "M", "R"), pred, data = savedPreds, geom = c("boxplot", "jitter")) + 
   xlab("Training class") +
   ylab("Training predictions") +
@@ -136,7 +141,7 @@ qplot(ifelse(obs == 1, "M", "R"), pred, data = savedPreds, geom = c("boxplot", "
 
 # Test set predictions
 testPreds <- predict(SonarPLS, testing)
-cvauc <- auc(predictor = testPreds, testing$Class)
+cvauc <- auc(predictor = testPreds, testing$Class, direction = ">")
 qplot(testing$Class, testPreds, geom = c("boxplot", "jitter")) + 
   xlab("Testing class") +
   ylab("Testing predictions") +
