@@ -41,8 +41,8 @@ get_mixOmics_spls <- function(...) { list(
     		keepX <- rep(param$keepX, param$ncomp)
     		if(!is.null(fixX)){
     			if(length(fixX) > 0){
-    				if(!is.na(fixX)){
-    					replaceX <- min(length(fixX), param$ncomp)
+    			  if(any(!is.na(fixY))){
+    			    replaceX <- min(length(fixX), param$ncomp)
     					keepX[1:replaceX] <- fixX[1:replaceX]
     				}
     			}
@@ -50,7 +50,7 @@ get_mixOmics_spls <- function(...) { list(
   			keepY <- rep(param$keepY, param$ncomp)
     		if(!is.null(fixY)){
     			if(length(fixY) > 0){
-    				if(!is.na(fixY)){
+    				if(any(!is.na(fixY))){
     					replaceY <- min(length(fixY), param$ncomp)
     					keepY[1:replaceY] <- fixY[1:replaceY]
     				}
