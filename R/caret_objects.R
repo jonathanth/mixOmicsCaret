@@ -41,7 +41,7 @@ get_mixOmics_spls <- function(...) { list(
     		keepX <- rep(param$keepX, param$ncomp)
     		if(!is.null(fixX)){
     			if(length(fixX) > 0){
-    			  if(any(!is.na(fixY))){
+    			  if(any(!is.na(fixX))){
     			    replaceX <- min(length(fixX), param$ncomp)
     					keepX[1:replaceX] <- fixX[1:replaceX]
     				}
