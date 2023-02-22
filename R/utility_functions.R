@@ -145,11 +145,11 @@ get_loadings <- function(trainobj,
     if(summarize){
       loadingsx <- loadingsx %>%
         group_by(comp, var) %>%
-        summarize(sd = sd(loading), loading = median(loading), chosen = mean(loading != 0)) %>%
+        summarize(sd = sd(loading), chosen = mean(loading != 0), loading = median(loading)) %>%
         ungroup
       loadingsy <- loadingsy %>%
         group_by(comp, var) %>%
-        summarize(sd = sd(loading), loading = median(loading), chosen = mean(loading != 0)) %>%
+        summarize(sd = sd(loading), chosen = mean(loading != 0), loading = median(loading)) %>%
         ungroup
     }
   }
