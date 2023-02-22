@@ -101,11 +101,11 @@ get_loadings <- function(trainobj,
     loadingsx <- trainobj$finalModel$loadings$X %>%
       data.frame %>%
       mutate(var = rownames(.), sd = NA, chosen = NA) %>%
-      gather(comp, loading, -var, -sd)
+      gather(comp, loading, -var, -sd, -chosen)
     loadingsy <- trainobj$finalModel$loadings$Y %>%
       data.frame %>%
       mutate(var = rownames(.), sd = NA, chosen = NA) %>%
-      gather(comp, loading, -var, -sd)
+      gather(comp, loading, -var, -sd, -chosen)
   }
 
   if(what[1] == "CV"){
@@ -127,7 +127,7 @@ get_loadings <- function(trainobj,
       trainobj$modelInfo$fit(trainobj$finalModel$X[index[[i]],],
                              trainobj$finalModel$Y[index[[i]],],
                              param = bt,
-                             trainobj$dots)
+                             fixX = trainobj$dots$fixX)
     })
     loadingsx <- lapply(seq_along(refits), function(i){
       refits[[i]]$loadings$X %>%
@@ -158,8 +158,13 @@ get_loadings <- function(trainobj,
     stop("Please choose \"finalModel\" or \"CV\".")
   }
 
-  out <- bind_rows(x = loadingsx, y = loadingsy, .id = "xy") %>%
-    select(var, comp, loading, sd, xy)
+  out <- bind_rows(x = loadingsx, y = loadingsy, .id = "xy")
+  if(!summarize){
+    out$chosen <- NA
+    out$sd <- NA
+  }
+  out <- out %>%
+    select(var, comp, loading, sd, chosen, xy)
 
   if(remove_empty)
     out <- out %>% filter(loading != 0)

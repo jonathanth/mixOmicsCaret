@@ -33,12 +33,14 @@ get_mixOmics_spls <- function(...) { list(
 			out <- setNames(expand.grid(ncomp, keepX, keepY), c("ncomp", "keepX", "keepY"))
 			out
 		},
-	fit = function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+	fit = function(x, y, wts, param, lev, last, weights, classProbs, fixX = NULL, ...) {
 			dots <- substitute(list(...))[-1]
 			extra_args <- sapply(dots, deparse)
-    		fixX <- as.numeric(eval(parse(text = extra_args["fixX"])))
-    		fixY <- as.numeric(eval(parse(text = extra_args["fixY"])))
-    		keepX <- rep(param$keepX, param$ncomp)
+			if(is.null(fixX)){
+			  fixX <- as.numeric(eval(parse(text = extra_args["fixX"])))
+			}
+    	fixY <- as.numeric(eval(parse(text = extra_args["fixY"])))
+    	keepX <- rep(param$keepX, param$ncomp)
     		if(!is.null(fixX)){
     			if(length(fixX) > 0){
     			  if(any(!is.na(fixX))){
